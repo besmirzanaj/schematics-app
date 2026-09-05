@@ -79,3 +79,22 @@ Dashboard (free up to 50 users):
 Result: `/admin/*` is additionally gated by Cloudflare identity. Customers
 never reach the admin UI; providers get an extra factor independent of the
 app's session cookie.
+
+## 8. Nightly offsite backups
+
+- `scp scripts/backup.sh /srv/skemat/scripts/` (mkpath `/srv/skemat/scripts` first)
+- `cp deploy/skemat-backup.service deploy/skemat-backup.timer /etc/systemd/system/`
+- Create `/etc/skemat-backup.env`:
+
+      BACKUP_VPS=backup@<backup-vps>
+      BACKUP_DIR=/srv/backups/skemat
+
+- Ensure passwordless SSH from the VPS to the backup host:
+  `ssh-keygen -t ed25519`, then append the public key to
+  `backup@<backup-vps>:~/.ssh/authorized_keys`.
+- `systemctl enable --now skemat-backup.timer`
+- Test: `systemctl start skemat-backup.service && systemctl status skemat-backup`
+
+What it does: an online SQLite snapshot (safe to take while the app streams
+files — WAL), keep the last 7 daily snapshots, and rsync-mirror the served
+`data/live` tree to the backup host.
