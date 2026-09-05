@@ -32,7 +32,6 @@ button { cursor:pointer; }
 .viewer .obj { margin:1.5rem 0; }
 .viewer header { display:flex; justify-content:space-between; align-items:center; gap:1rem; }
 .viewer header h2 { font-size:1rem; }
-.viewer iframe { width:100%; height:48vh; border:1px solid var(--line); border-radius:8px; background:#fff; }
-body.expand .viewer iframe { height:90vh; }
+.viewer iframe { width:100%; height:70vh; border:1px solid var(--line); border-radius:8px; background:#fff; }
 .viewer img { max-width:100%; border:1px solid var(--line); border-radius:8px; }
 table.striped { width:100%; border-collapse:collapse; } table.striped td, table.striped th { border-bottom:1px solid var(--line); padding:.4rem; text-align:left; }
