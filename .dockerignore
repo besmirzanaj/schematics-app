@@ -1,0 +1,11 @@
+.git
+bin
+data
+deploy
+ingest/swfout
+*.db
+*.db-wal
+*.db-shm
+.DS_Store
+.env
+**/__pycache__

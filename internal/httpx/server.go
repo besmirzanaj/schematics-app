@@ -38,7 +38,7 @@ func NewServer(st *store.Store, cfg config.Config) (*Server, error) {
 		DataRoot:      cfg.DataRoot,
 		SecureCookies: cfg.SecureCookies,
 		Templates:     tmpl,
-		Static:        static,
+		Static:        noDirs{static},
 	}
 	ensureAdmin(st, cfg.AdminEmail)
 	return s, nil
@@ -71,7 +71,7 @@ func (s *Server) Routes() http.Handler {
 	admin.HandleFunc("POST /admin/users/{id}/delete", s.adminDeleteUser)
 	mux.Handle("/admin/", s.requireAuth(s.requireAdmin(admin)))
 
-	return mux
+	return securityHeadersMiddleware(mux)
 }
 
 // render writes a page template.
