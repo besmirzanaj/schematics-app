@@ -1,0 +1,12 @@
+{{template "header" .}}
+<main>
+  <p class="crumb"><a href="/">← back</a></p>
+  <h1>{{.Model.DisplayName}}</h1>
+  <p class="muted">{{.Model.Name}} · dataset {{.Model.DatasetYear}}{{if .Model.Region}} · {{.Model.Region}}{{end}}</p>
+  <ul class="stack">
+    {{range .Systems}}
+    <li><a class="row" href="/system/{{.ID}}">System {{.Code}}</a></li>
+    {{else}}<li>No systems</li>{{end}}
+  </ul>
+</main>
+{{template "footer" .}}

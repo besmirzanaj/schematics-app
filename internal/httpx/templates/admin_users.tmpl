@@ -1,0 +1,34 @@
+{{template "header" .}}
+<main>
+  <h1>Users</h1>
+  <form method="post" action="/admin/users" class="card stack">
+    <input type="email" name="email" placeholder="user@example.com" required>
+    <select name="role"><option>customer</option><option>staff</option><option>admin</option></select>
+    <input type="password" name="password" placeholder="initial password" required>
+    <button>Create user</button>
+  </form>
+  <table class="striped">
+    <tr><th>Email</th><th>Role</th><th>Entitlement</th><th>Password</th><th></th></tr>
+    {{range .Users}}
+    <tr>
+      <td>{{.Email}}</td>
+      <td><form method="post" action="/admin/users/{{.ID}}/role">
+        <select name="role" onchange="this.form.submit()">
+          {{$r := .Role}}<option {{if eq $r "customer"}}selected{{end}}>customer</option>
+          <option {{if eq $r "staff"}}selected{{end}}>staff</option>
+          <option {{if eq $r "admin"}}selected{{end}}>admin</option>
+        </select></form></td>
+      <td><form method="post" action="/admin/users/{{.ID}}/entitlements" class="inline">
+        <input type="text" name="scope" placeholder="global / make / model / year" value="global">
+        <input type="text" name="ref" placeholder="ref (id or year)" size="5">
+        <button>Set</button></form></td>
+      <td><form method="post" action="/admin/users/{{.ID}}/password" class="inline">
+        <input type="password" name="password" placeholder="new password" size="12">
+        <button>Reset</button></form></td>
+      <td><form method="post" action="/admin/users/{{.ID}}/delete"
+            onsubmit="return confirm('Delete user?')"><button>Delete</button></form></td>
+    </tr>
+    {{end}}
+  </table>
+</main>
+{{template "footer" .}}

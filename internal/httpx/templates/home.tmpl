@@ -1,0 +1,12 @@
+{{template "header" .}}
+<main>
+  <h1>Vehicle picker</h1>
+  <ol class="stack">
+    {{range .Years}}
+    <li><h2>Year {{.}}</h2>
+      <div hx-get="/catalog/makes?year={{.}}" hx-trigger="revealed" hx-swap="innerHTML"></div>
+    </li>
+    {{end}}
+  </ol>
+</main>
+{{template "footer" .}}

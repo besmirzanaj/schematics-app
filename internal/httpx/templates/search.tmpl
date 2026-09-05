@@ -1,0 +1,11 @@
+{{template "header" .}}
+<main>
+  <h1>Search results for "{{.Q}}"</h1>
+  <ul class="stack">
+    {{range .Hits}}
+    <li class="row"><a href="/model/{{.Model.ID}}">{{.Make.Name}} — {{.Model.DisplayName}}</a>
+      <span class="muted">{{.Model.DatasetYear}}</span></li>
+    {{else}}<li>No matches</li>{{end}}
+  </ul>
+</main>
+{{template "footer" .}}

@@ -1,0 +1,23 @@
+{{template "header" .}}
+<main>
+  <p class="crumb"><a href="/model/{{.Ref.Mod.ID}}">← {{.Ref.Mod.DisplayName}}</a></p>
+  <h1>{{.Ref.Mk.Name}} — System {{.Ref.Sys.Code}}</h1>
+  <div class="viewer">
+    {{range .Objects}}
+    <section class="obj">
+      <header>
+        <h2>{{.Display}}</h2>
+        <a href="/file/{{.ID}}?download=1">Download</a>
+      </header>
+      {{if eq .Kind "pdf"}}
+        <iframe src="/file/{{.ID}}" title="{{.Filename}}"></iframe>
+      {{else if eq .Kind "swf"}}
+        <p class="err">Not convertible — legacy Flash file. Available for download only.</p>
+      {{else}}
+        <img loading="lazy" src="/file/{{.ID}}" alt="{{.Display}}">
+      {{end}}
+    </section>
+    {{else}}<p>No documents in this system.</p>{{end}}
+  </div>
+</main>
+{{template "footer" .}}
