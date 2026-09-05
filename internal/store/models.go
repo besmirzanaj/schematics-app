@@ -327,3 +327,42 @@ func buildMatch(q string) string {
 	}
 	return match
 }
+
+// -------- ACL lookup helpers used by the HTTP layer --------
+
+func (s *Store) ModelByID(id int64) (Model, error) {
+	var m Model
+	err := s.db.QueryRow(`SELECT id, make_id, name, display_name, year, dataset_year, region, internal_only FROM models WHERE id = ?`, id).
+		Scan(&m.ID, &m.MakeID, &m.Name, &m.DisplayName, &m.Year, &m.DatasetYear, &m.Region, &m.InternalOnly)
+	if err == sql.ErrNoRows {
+		return m, ErrNotFound
+	}
+	return m, err
+}
+
+func (s *Store) MakeByID(id int64) (Make, error) {
+	var mk Make
+	err := s.db.QueryRow(`SELECT id, name, internal_only FROM makes WHERE id = ?`, id).Scan(&mk.ID, &mk.Name, &mk.InternalOnly)
+	if err == sql.ErrNoRows {
+		return mk, ErrNotFound
+	}
+	return mk, err
+}
+
+func (s *Store) SystemWithContext(id int64) (ObjectRef, error) {
+	var r ObjectRef
+	err := s.db.QueryRow(`SELECT sy.id, sy.model_id, sy.code,
+		 m.id, m.make_id, m.name, m.display_name, m.year, m.dataset_year, m.region, m.internal_only,
+		 mk.id, mk.name, mk.internal_only
+		 FROM systems sy
+		 JOIN models m ON m.id = sy.model_id
+		 JOIN makes mk ON mk.id = m.make_id
+		 WHERE sy.id = ?`, id).
+		Scan(&r.Sys.ID, &r.Sys.ModelID, &r.Sys.Code,
+			&r.Mod.ID, &r.Mod.MakeID, &r.Mod.Name, &r.Mod.DisplayName, &r.Mod.Year, &r.Mod.DatasetYear, &r.Mod.Region, &r.Mod.InternalOnly,
+			&r.Mk.ID, &r.Mk.Name, &r.Mk.InternalOnly)
+	if err == sql.ErrNoRows {
+		return r, ErrNotFound
+	}
+	return r, err
+}
