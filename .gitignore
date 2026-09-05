@@ -3,6 +3,8 @@ data/
 *.db-wal
 *.db-shm
 bin/
+ingest/bin/
+ingest/swfout/
 skemat-server
 .DS_Store
 .env
