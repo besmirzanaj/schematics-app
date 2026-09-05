@@ -276,25 +276,24 @@ func (s *Store) DeleteSession(tokenHash string) error {
 
 func (s *Store) Search(q string, e Entitlements, admin bool) ([]ModelHit, error) {
 	match := buildMatch(q)
-	rows, err := s.db.Query(`SELECT f.rowid FROM catalog_fts f WHERE catalog_fts MATCH ? ORDER BY rank LIMIT 100`, match)
+	rows, err := s.db.Query(`SELECT
+		mk.id, mk.name, mk.internal_only,
+		m.id, m.make_id, m.name, m.display_name, m.year, m.dataset_year, m.region, m.internal_only
+		FROM catalog_fts f
+		JOIN models m ON m.id = f.rowid
+		JOIN makes mk ON mk.id = m.make_id
+		WHERE catalog_fts MATCH ?
+		ORDER BY rank LIMIT 100`, match)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var hits []ModelHit
 	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
 		var mk Make
 		var m Model
-		err := s.db.QueryRow(`SELECT mk.id, mk.name, mk.internal_only,
-			m.id, m.make_id, m.name, m.display_name, m.year, m.dataset_year, m.region, m.internal_only
-			FROM models m JOIN makes mk ON mk.id = m.make_id WHERE m.id = ?`, id).
-			Scan(&mk.ID, &mk.Name, &mk.InternalOnly,
-				&m.ID, &m.MakeID, &m.Name, &m.DisplayName, &m.Year, &m.DatasetYear, &m.Region, &m.InternalOnly)
-		if err != nil {
+		if err := rows.Scan(&mk.ID, &mk.Name, &mk.InternalOnly,
+			&m.ID, &m.MakeID, &m.Name, &m.DisplayName, &m.Year, &m.DatasetYear, &m.Region, &m.InternalOnly); err != nil {
 			return nil, err
 		}
 		if e.Visible(m, mk, admin) {

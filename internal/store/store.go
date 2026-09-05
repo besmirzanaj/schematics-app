@@ -42,6 +42,11 @@ func Open(path string) (*Store, error) {
 
 func (s *Store) Close() error { return s.db.Close() }
 
+// Exec runs a single SQL statement against the underlying database.
+// Exposed for integration tests and admin tooling; the app itself never
+// writes the catalog through Go (the Python ingest owns catalog writes).
+func (s *Store) Exec(stmt string) (sql.Result, error) { return s.db.Exec(stmt) }
+
 var ErrNotFound = errors.New("not found")
 
 type Entitlements struct {
