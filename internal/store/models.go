@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"slices"
 	"strings"
 )
 
@@ -32,16 +33,51 @@ func (s *Store) Makes(e Entitlements, admin bool) ([]Make, error) {
 		if m.InternalOnly {
 			continue
 		}
-		if e.Global || e.Makes[m.ID] || s.makeReachable(m.ID, e) {
+		if e.Global || e.Makes[m.ID] || s.MakeReachable(m.ID, e) {
 			out = append(out, m)
 		}
 	}
 	return out, nil
 }
 
+// Brand is a make plus the edition breakdown needed to render the catalog:
+// how many models are reachable and which dataset editions they span.
+type Brand struct {
+	Make
+	ModelCount int64
+	Editions   []int64
+}
+
+// Brands builds the full make list with per-make model counts and the
+// distinct dataset editions covered, honouring entitlements for customers.
+func (s *Store) Brands(e Entitlements, admin bool) ([]Brand, error) {
+	ms, err := s.Makes(e, admin)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Brand, 0, len(ms))
+	for _, mk := range ms {
+		mods, err := s.Models(mk.ID, e, admin)
+		if err != nil {
+			return nil, err
+		}
+		b := Brand{Make: mk, ModelCount: int64(len(mods))}
+		seen := map[int64]bool{}
+		for _, m := range mods {
+			if !seen[m.DatasetYear] {
+				seen[m.DatasetYear] = true
+				b.Editions = append(b.Editions, m.DatasetYear)
+			}
+		}
+		slices.Sort(b.Editions)
+		out = append(out, b)
+	}
+	return out, nil
+}
+
 // makeReachable reports whether the user's model- or year-scoped entitlements
 // cover at least one model that belongs to the given make.
-func (s *Store) makeReachable(makeID int64, e Entitlements) bool {
+func (s *Store) MakeReachable(makeID int64, e Entitlements) bool {
 	if len(e.Models) == 0 && len(e.Years) == 0 {
 		return false
 	}
@@ -88,6 +124,7 @@ func (s *Store) Models(mkID int64, e Entitlements, admin bool) ([]Model, error) 
 	for _, m := range all {
 		mk := Make{ID: m.MakeID}
 		if e.Visible(m, mk, admin) {
+			m.DisplayName = CleanDisplay(m.DisplayName)
 			out = append(out, m)
 		}
 	}
@@ -297,6 +334,7 @@ func (s *Store) Search(q string, e Entitlements, admin bool) ([]ModelHit, error)
 			return nil, err
 		}
 		if e.Visible(m, mk, admin) {
+			m.DisplayName = CleanDisplay(m.DisplayName)
 			hits = append(hits, ModelHit{Model: m, Make: mk})
 		}
 	}
@@ -336,6 +374,9 @@ func (s *Store) ModelByID(id int64) (Model, error) {
 	if err == sql.ErrNoRows {
 		return m, ErrNotFound
 	}
+	if err == nil {
+		m.DisplayName = CleanDisplay(m.DisplayName)
+	}
 	return m, err
 }
 
@@ -362,6 +403,9 @@ func (s *Store) SystemWithContext(id int64) (ObjectRef, error) {
 			&r.Mk.ID, &r.Mk.Name, &r.Mk.InternalOnly)
 	if err == sql.ErrNoRows {
 		return r, ErrNotFound
+	}
+	if err == nil {
+		r.Mod.DisplayName = CleanDisplay(r.Mod.DisplayName)
 	}
 	return r, err
 }

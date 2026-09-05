@@ -22,6 +22,21 @@ func (s *Server) modelByIDAndCheck(w http.ResponseWriter, r *http.Request, id in
 	return m, nil
 }
 
+// makeVisible reports whether a non-admin user may reach the given make,
+// mirroring the filter applied by Makes().
+func (s *Server) makeVisible(mk store.Make, e store.Entitlements, admin bool) bool {
+	if admin {
+		return true
+	}
+	if mk.InternalOnly {
+		return false
+	}
+	if e.Global || e.Makes[mk.ID] {
+		return true
+	}
+	return s.St.MakeReachable(mk.ID, e)
+}
+
 func (s *Server) checkSystem(w http.ResponseWriter, r *http.Request, systemID int64) (store.ObjectRef, error) {
 	u, _ := s.currentUser(r)
 	ref, err := s.St.SystemWithContext(systemID)

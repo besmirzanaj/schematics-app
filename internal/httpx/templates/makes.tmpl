@@ -1,6 +1,0 @@
-<ul class="grid">
-  {{range .Makes}}
-  <li><a hx-get="/catalog/models?make_id={{.ID}}" hx-target="#models-{{.ID}}" hx-swap="innerHTML">{{.Name}}</a>
-    <div id="models-{{.ID}}"></div></li>
-  {{else}}<li>None available</li>{{end}}
-</ul>

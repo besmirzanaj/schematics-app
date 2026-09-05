@@ -14,11 +14,25 @@ button { cursor:pointer; }
 .chip { display:inline-block; padding:.3rem .8rem; background:#1a2334; border:1px solid var(--line); border-radius:20px; text-decoration:none; margin:.15rem; }
 .card { background:#161e2f; border:1px solid var(--line); padding:1.25rem; border-radius:10px; }
 .row { display:block; padding:.6rem .9rem; background:#161e2f; border:1px solid var(--line); border-radius:8px; color:var(--fg); text-decoration:none; }
+.row.mod { display:flex; justify-content:space-between; align-items:center; gap:.5rem; }
+.row.mod .chip { padding:.1rem .5rem; font-size:.75rem; margin:0; }
+.hit { display:flex; justify-content:space-between; align-items:center; gap:.5rem; }
+.chips { margin:.25rem 0 1rem; }
+.chip.on { background:var(--accent); border-color:var(--accent); color:#0d1420; font-weight:600; }
+.crumbs { font-size:.9rem; color:var(--muted); margin-bottom:.75rem; }
+.crumbs a { text-decoration:none; }
+.bcard { display:block; padding:1rem; background:#161e2f; border:1px solid var(--line); border-radius:10px; color:var(--fg); text-decoration:none; }
+.bcard:hover, .row:hover { border-color:var(--accent); }
+.bcard .bname { font-weight:600; margin-bottom:.25rem; }
+.bcard .bmeta { color:var(--muted); font-size:.85rem; display:flex; align-items:center; flex-wrap:wrap; gap:.2rem; }
+.bcard .bmeta .chip { padding:.1rem .5rem; font-size:.75rem; margin:0; }
 .muted, .crumb { color:var(--muted); font-size:.9rem; }
 .err { color:#ff7a7a; }
 .inline { display:inline; }
 .viewer .obj { margin:1.5rem 0; }
-.viewer header { display:flex; justify-content:space-between; align-items:center; }
-.viewer iframe { width:100%; height:70vh; border:1px solid var(--line); border-radius:8px; background:#fff; }
+.viewer header { display:flex; justify-content:space-between; align-items:center; gap:1rem; }
+.viewer header h2 { font-size:1rem; }
+.viewer iframe { width:100%; height:48vh; border:1px solid var(--line); border-radius:8px; background:#fff; }
+body.expand .viewer iframe { height:90vh; }
 .viewer img { max-width:100%; border:1px solid var(--line); border-radius:8px; }
 table.striped { width:100%; border-collapse:collapse; } table.striped td, table.striped th { border-bottom:1px solid var(--line); padding:.4rem; text-align:left; }

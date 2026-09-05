@@ -1,0 +1,15 @@
+{{template "header" .}}
+<main>
+  <nav class="crumbs"><a href="/">Skemat</a> › <span>{{.Make.Name}}</span></nav>
+  <h1>{{.Make.Name}}</h1>
+  <div class="chips">
+    <a class="chip {{if not .Year}}on{{end}}" href="/catalog/makes/{{.Make.ID}}">All editions</a>
+    {{range .Editions}}<a class="chip {{if eq (printf "%d" .) $.Year}}on{{end}}" href="/catalog/makes/{{$.Make.ID}}?year={{.}}">{{.}}</a>{{end}}
+  </div>
+  <ul class="grid models" id="model-list">
+    {{range .Models}}
+    <li><a class="row mod" href="/model/{{.ID}}">{{.DisplayName}} <span class="chip">{{.DatasetYear}}</span></a></li>
+    {{else}}<li>No models in this edition.</li>{{end}}
+  </ul>
+</main>
+{{template "footer" .}}

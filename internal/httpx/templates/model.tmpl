@@ -1,8 +1,10 @@
 {{template "header" .}}
 <main>
-  <p class="crumb"><a href="/">← back</a></p>
+  <nav class="crumbs"><a href="/">Skemat</a> › <a href="/catalog/makes/{{.Make.ID}}">{{.Make.Name}}</a> › <span>{{.Model.DisplayName}}</span></nav>
   <h1>{{.Model.DisplayName}}</h1>
-  <p class="muted">{{.Model.Name}} · dataset {{.Model.DatasetYear}}{{if .Model.Region}} · {{.Model.Region}}{{end}}</p>
+  <p class="muted">
+    {{if .CargoYear}}model year {{.CargoYear}} · {{end}}{{.Make.Name}} · edition {{.Model.DatasetYear}}{{if .Model.Region}} · {{.Model.Region}}{{end}}
+  </p>
   <ul class="stack">
     {{range .Systems}}
     <li><a class="row" href="/system/{{.ID}}">System {{.Code}}</a></li>

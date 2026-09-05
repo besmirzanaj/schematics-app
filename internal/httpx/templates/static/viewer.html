@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Document</title>
+  <style>
+    :root { --bg:#2b3444; --fg:#e6ebf2; --line:#3c4a5f; --accent:#4f8cff; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.4 system-ui, sans-serif; }
+    #toolbar { position:sticky; top:0; z-index:10; display:flex; gap:.5rem; align-items:center; padding:.4rem .6rem; background:#232c3d; border-bottom:1px solid var(--line); }
+    #toolbar button { font:inherit; padding:.25rem .6rem; border-radius:6px; border:1px solid var(--line); background:#1a2334; color:var(--fg); cursor:pointer; }
+    #toolbar button:hover { border-color:var(--accent); }
+    #info { margin-left:auto; color:#aab7ca; }
+    #status { position:sticky; top:44px; z-index:9; padding:.4rem .6rem; background:#2b3444; color:#aab7ca; }
+    #pages { padding:.6rem; }
+    .page { margin:0 auto .6rem; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.35); }
+    .page canvas { display:block; width:100%; height:auto; }
+    .err { padding:1rem; color:#ffb4b4; }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <button id="zoomOut" title="Zoom out">−</button>
+    <span id="zoomPct">Fit</span>
+    <button id="zoomIn" title="Zoom in">+</button>
+    <button id="fitWidth" title="Fit to width">W</button>
+    <button id="download" title="Download original">⭳</button>
+    <span id="info"></span>
+  </div>
+  <div id="status">Loading document…</div>
+  <div id="pages"></div>
+
+  <script src="/static/pdfjs/build/pdf.js"></script>
+  <script>
+    (function () {
+      if (typeof pdfjsLib === "undefined") {
+        document.getElementById("status").className = "err";
+        document.getElementById("status").textContent = "PDF viewer failed to load (pdf.js missing).";
+        return;
+      }
+      var params = new URLSearchParams(location.search);
+      var file = params.get("file");
+      if (!file) {
+        document.getElementById("status").className = "err";
+        document.getElementById("status").textContent = "No file specified.";
+        return;
+      }
+      var base = "/static/pdfjs/";
+      pdfjsLib.GlobalWorkerOptions.workerSrc = base + "build/pdf.worker.js";
+
+      var pagesEl = document.getElementById("pages");
+      var statusEl = document.getElementById("status");
+      var infoEl = document.getElementById("info");
+      var DOWNLOAD = file.indexOf("?") === -1 ? file + "?download=1" : file + "&download=1";
+      document.getElementById("download").onclick = function () { location.href = DOWNLOAD; };
+
+      var pdfDoc = null;
+      var zoom = 0; // 0 = fit to width, otherwise absolute scale
+      var MAX_SCALE = 5;
+
+      function render() {
+        if (!pdfDoc) return;
+        var container = document.querySelector("#pages");
+        var targetWidth = zoom === 0
+          ? (container.clientWidth || 800) - 2
+          : (container.clientWidth || 800) * zoom;
+        var jobs = [];
+        for (var p = 1; p <= pdfDoc.numPages; p++) {
+          (function (p) {
+            jobs.push(pdfDoc.getPage(p).then(function (page) {
+              var vp1 = page.getViewport({ scale: 1 });
+              var scale = targetWidth / vp1.width;
+              var vp = page.getViewport({ scale: scale });
+              var style = document.createElement("style");
+              var cls = "page" + p;
+              var div = document.querySelector("." + cls);
+              if (!div) {
+                div = document.createElement("div");
+                div.className = "page " + cls;
+                div.innerHTML = "<canvas></canvas>";
+                pagesEl.appendChild(div);
+              }
+              var canvas = div.querySelector("canvas");
+              canvas.width = Math.floor(vp.width * (window.devicePixelRatio || 1));
+              canvas.height = Math.floor(vp.height * (window.devicePixelRatio || 1));
+              canvas.style.width = vp.width + "px";
+              canvas.style.height = vp.height + "px";
+              var ctx = canvas.getContext("2d");
+              ctx.setTransform(window.devicePixelRatio || 1, 0, 0, window.devicePixelRatio || 1, 0, 0);
+              return page.render({ canvasContext: ctx, viewport: vp }).promise;
+            }));
+          })(p);
+        }
+        Promise.all(jobs).then(function () {
+          statusEl.textContent = zoom === 0 ? "Fit to width" : Math.round(zoom * 100) + "%";
+          statusEl.style.display = "none";
+          infoEl.textContent = pdfDoc.numPages + " page" + (pdfDoc.numPages === 1 ? "" : "s");
+        }).catch(function (err) {
+          statusEl.className = "err";
+          statusEl.textContent = "Render error: " + err;
+        });
+      }
+
+      document.getElementById("zoomIn").onclick = function () {
+        zoom = Math.min(zoom === 0 ? 1.25 : zoom * 1.25, MAX_SCALE);
+        render();
+      };
+      document.getElementById("zoomOut").onclick = function () {
+        zoom = zoom === 0 ? 0.8 : Math.max(zoom / 1.25, 0.1);
+        render();
+      };
+      document.getElementById("fitWidth").onclick = function () { zoom = 0; render(); };
+
+      var resizeTimer = null;
+      window.addEventListener("resize", function () {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(render, 200);
+      });
+
+      pdfjsLib.getDocument({
+        url: file,
+        cMapUrl: base + "cmaps/",
+        cMapPacked: true,
+        standardFontDataUrl: base + "standard_fonts/",
+      }).promise.then(function (doc) {
+        pdfDoc = doc;
+        render();
+      }).catch(function (err) {
+        statusEl.className = "err";
+        statusEl.textContent = "Failed to open document: " + err;
+      });
+    })();
+  </script>
+</body>
+</html>

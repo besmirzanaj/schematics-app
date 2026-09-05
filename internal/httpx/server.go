@@ -27,7 +27,9 @@ func NewServer(st *store.Store, cfg config.Config) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	tmpl, err := template.ParseFS(templateFS, "templates/*.tmpl")
+	tmpl, err := template.New("").Funcs(template.FuncMap{
+		"add": func(a, b int) int { return a + b },
+	}).ParseFS(templateFS, "templates/*.tmpl")
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +46,7 @@ func NewServer(st *store.Store, cfg config.Config) (*Server, error) {
 
 func (s *Server) Routes() http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("GET /static/{file}", http.FileServerFS(s.Static))
+	mux.Handle("GET /static/{file...}", http.FileServerFS(s.Static))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("ok")) })
 
 	mux.HandleFunc("GET /login", s.getLogin)
@@ -53,8 +55,7 @@ func (s *Server) Routes() http.Handler {
 
 	authed := http.NewServeMux()
 	authed.HandleFunc("GET /", s.home)
-	authed.HandleFunc("GET /catalog/makes", s.makes)
-	authed.HandleFunc("GET /catalog/models", s.models)
+	authed.HandleFunc("GET /catalog/makes/{id}", s.brand)
 	authed.HandleFunc("GET /model/{id}", s.modelPage)
 	authed.HandleFunc("GET /system/{id}", s.systemPage)
 	authed.HandleFunc("GET /file/{id}", s.fileHandler)

@@ -1,23 +1,26 @@
 {{template "header" .}}
 <main>
-  <p class="crumb"><a href="/model/{{.Ref.Mod.ID}}">← {{.Ref.Mod.DisplayName}}</a></p>
+  <nav class="crumbs"><a href="/">Skemat</a> › <a href="/catalog/makes/{{.Ref.Mk.ID}}">{{.Ref.Mk.Name}}</a> › <a href="/model/{{.Ref.Mod.ID}}">{{.Ref.Mod.DisplayName}}</a> › <span>System {{.Ref.Sys.Code}}</span></nav>
   <h1>{{.Ref.Mk.Name}} — System {{.Ref.Sys.Code}}</h1>
+  <p class="muted">{{.Ref.Mod.DisplayName}}{{if .CargoYear}} · model year {{.CargoYear}}{{end}} · edition {{.Ref.Mod.DatasetYear}}</p>
   <div class="viewer">
-    {{range .Objects}}
+    {{range $i, $o := .Objects}}
     <section class="obj">
       <header>
-        <h2>{{.Display}}</h2>
-        <a href="/file/{{.ID}}?download=1">Download</a>
+        <h2>{{$o.Display}}</h2>
+        <span class="muted">{{add $i 1}} / {{len $.Objects}}</span>
+        <a href="/file/{{$o.ID}}?download=1">Download</a>
       </header>
-      {{if eq .Kind "pdf"}}
-        <iframe src="/file/{{.ID}}" title="{{.Filename}}"></iframe>
-      {{else if eq .Kind "swf"}}
+      {{if eq $o.Kind "pdf"}}
+        <iframe src="/static/viewer.html?file=/file/{{$o.ID}}" title="{{$o.Filename}}" loading="lazy"></iframe>
+      {{else if eq $o.Kind "swf"}}
         <p class="err">Not convertible — legacy Flash file. Available for download only.</p>
       {{else}}
-        <img loading="lazy" src="/file/{{.ID}}" alt="{{.Display}}">
+        <img loading="lazy" src="/file/{{$o.ID}}" alt="{{$o.Display}}">
       {{end}}
     </section>
     {{else}}<p>No documents in this system.</p>{{end}}
   </div>
+  <p><button onclick="document.body.classList.toggle('expand')">Toggle full-size documents</button></p>
 </main>
 {{template "footer" .}}

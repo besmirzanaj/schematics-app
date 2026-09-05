@@ -1,12 +1,13 @@
 {{template "header" .}}
 <main>
-  <h1>Vehicle picker</h1>
-  <ol class="stack">
-    {{range .Years}}
-    <li><h2>Year {{.}}</h2>
-      <div hx-get="/catalog/makes?year={{.}}" hx-trigger="revealed" hx-swap="innerHTML"></div>
-    </li>
-    {{end}}
-  </ol>
+  <h1>Browse by brand</h1>
+  <ul class="grid brands">
+    {{range .Brands}}
+    <li><a class="bcard" href="/catalog/makes/{{.ID}}">
+      <div class="bname">{{.Name}}</div>
+      <div class="bmeta">{{.ModelCount}} models{{range .Editions}} · <span class="chip">{{.}}</span>{{end}}</div>
+    </a></li>
+    {{else}}<li class="row">No brands in your plan.</li>{{end}}
+  </ul>
 </main>
 {{template "footer" .}}

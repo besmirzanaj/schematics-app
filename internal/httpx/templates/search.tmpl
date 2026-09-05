@@ -1,10 +1,11 @@
 {{template "header" .}}
 <main>
   <h1>Search results for "{{.Q}}"</h1>
+  {{if .Hits}}<p class="muted">{{len .Hits}} match{{if ne (len .Hits) 1}}es{{end}}</p>{{end}}
   <ul class="stack">
     {{range .Hits}}
-    <li class="row"><a href="/model/{{.Model.ID}}">{{.Make.Name}} — {{.Model.DisplayName}}</a>
-      <span class="muted">{{.Model.DatasetYear}}</span></li>
+    <li class="row hit"><a href="/model/{{.Model.ID}}">{{.Make.Name}} — {{.Model.DisplayName}}</a>
+      <span class="chip">{{.Model.DatasetYear}}</span></li>
     {{else}}<li>No matches</li>{{end}}
   </ul>
 </main>
