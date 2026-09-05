@@ -24,9 +24,7 @@ KIND_BY_EXT = {
     ".png": "png", ".swf": "swf",
 }
 REGION_RE = re.compile(r"^\(([^)]+)\)$")
-DIRTY_FILE = ".DS_Store"
 YEAR_RE = re.compile(r"\[(\d{4})\]")
-DIGIT_RE = re.compile(r"^(\d+)")
 
 # (section-name, prefix) for the synthetic reference/misc folders
 REFERENCE_FOLDERS = {"optional", "pdf"}
@@ -59,8 +57,19 @@ def main():
     os.makedirs(args.dest, exist_ok=True)
     os.makedirs(os.path.dirname(args.db) or ".", exist_ok=True)
     con = sqlite3.connect(args.db)
-    con.executescript(open(args.schema).read())
+    schema_sql = open(args.schema).read()
+    con.executescript(schema_sql)
     cur = con.cursor()
+
+    # guard: INSERT OR REPLACE silently merges rows if the objects uniqueness
+    # key is the legacy (system_id, filename); a stale table must be rebuilt
+    # with the current (system_id, rel_path) constraint.
+    tbl_sql = cur.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='objects'"
+    ).fetchone()[0]
+    if "UNIQUE (system_id, rel_path)" not in tbl_sql:
+        cur.execute("DROP TABLE objects")
+        con.executescript(schema_sql)
 
     # wipe catalog tables (idempotency); users/entitlements/sessions survive
     for t in ("objects", "systems", "models", "makes"):
@@ -95,20 +104,31 @@ def main():
         ).fetchone()
         return row[0]
 
-    def add_files(system_id, srcdir, dstdir):
-        files = sorted(
-            (f for f in os.listdir(srcdir)
-             if not f.startswith(".") and f != DIRTY_FILE and os.path.isfile(os.path.join(srcdir, f))),
-            key=natural_key,
-        )
-        for order, f in enumerate(files, start=1):
-            rel = os.path.normpath(os.path.join(dstdir, f))
-            os.makedirs(os.path.dirname(os.path.join(args.dest, rel)), exist_ok=True)
-            shutil.copy2(os.path.join(srcdir, f), os.path.join(args.dest, rel))
+    def add_files(system_id, srcdir, dstbase, recursive):
+        if recursive:
+            rels = []
+            for cwd, dirs, files in os.walk(srcdir):
+                dirs[:] = sorted(d for d in dirs if not d.startswith("."))
+                for f in files:
+                    if not f.startswith("."):
+                        rels.append(os.path.relpath(os.path.join(cwd, f), srcdir))
+        else:
+            rels = [f for f in os.listdir(srcdir)
+                    if os.path.isfile(os.path.join(srcdir, f)) and not f.startswith(".")]
+        rels = sorted(rels, key=natural_key)
+        for order, rel in enumerate(rels, start=1):
+            src = os.path.join(srcdir, rel)
+            dstrel = os.path.normpath(os.path.join(dstbase, rel))
+            dst = os.path.join(args.dest, dstrel)
+            os.makedirs(os.path.dirname(dst) or ".", exist_ok=True)
+            if os.path.exists(dst):
+                os.chmod(dst, 0o644)
+            shutil.copy2(src, dst)
             cur.execute(
                 "INSERT OR REPLACE INTO objects (system_id, filename, display, kind, rel_path, sort_order) "
                 "VALUES (?, ?, ?, ?, ?, ?)",
-                (system_id, f, os.path.splitext(f)[0], kind_of(f), rel, order),
+                (system_id, os.path.basename(rel), os.path.splitext(os.path.basename(rel))[0],
+                 kind_of(rel), dstrel, order),
             )
 
     def add_model_files(make_name, model_dir, dataset_year, year, region, internal, files_root, model_display=None):
@@ -121,14 +141,13 @@ def main():
                  if os.path.isfile(os.path.join(files_root, f)) and not f.startswith(".")]
         if files:
             sid = upsert_system(mid, "0")
-            add_files(sid, files_root, f"{dataset_year}/{make_name}/{model_dir}/{region}")
+            add_files(sid, files_root, f"{dataset_year}/{make_name}/{model_dir}/{region}", recursive=False)
         for entry in sorted(os.listdir(files_root)):
             full = os.path.join(files_root, entry)
             if not os.path.isdir(full) or entry.startswith("."):
                 continue
-            if DIGIT_RE.match(entry) or entry == "0":
-                sid = upsert_system(mid, entry)
-                add_files(sid, full, f"{dataset_year}/{make_name}/{model_dir}/{region}/{entry}")
+            sid = upsert_system(mid, entry)
+            add_files(sid, full, f"{dataset_year}/{make_name}/{model_dir}/{region}/{entry}", recursive=True)
         return mid
 
     def walk_make_dir(make_path, make_name, dataset_year, region=""):
@@ -162,7 +181,7 @@ def main():
                 display = {"pdf": "Index & Manuals", "optional": "Optional Images"}[entry]
                 mid = upsert_model(make_id, f"{entry}-{dataset_year}", display, dataset_year, dataset_year, "", True)
                 sid = upsert_system(mid, "0")
-                add_files(sid, full, f"{dataset_year}/Reference/{entry}")
+                add_files(sid, full, f"{dataset_year}/Reference/{entry}", recursive=False)
             else:
                 walk_make_dir(full, entry, dataset_year)
 

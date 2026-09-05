@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS objects (
   kind TEXT NOT NULL DEFAULT 'other',     -- pdf|jpg|png|swf|other
   rel_path TEXT NOT NULL,
   sort_order INTEGER NOT NULL DEFAULT 0,
-  UNIQUE (system_id, filename)
+  UNIQUE (system_id, rel_path)
 );
 
 CREATE TABLE IF NOT EXISTS users (

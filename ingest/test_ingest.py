@@ -74,6 +74,45 @@ class TestIngest(unittest.TestCase):
         ).fetchone()
         self.assertEqual(stats, stats2)
 
+    def test_recursive_subtrees_no_doubleentry(self):
+        # A model with root files AND subdir systems AND nested content in a system
+        # must not double-ingest (system '0' stays flat) and must preserve paths.
+        root = tempfile.mkdtemp()
+        src = os.path.join(root, "Skemat")
+        m = os.path.join(src, "datasht-2005", "daihatsu", "cuore")
+        os.makedirs(os.path.join(m, "1237", "pics"), exist_ok=True)
+        os.makedirs(os.path.join(m, "99 968"), exist_ok=True)
+        os.makedirs(os.path.join(src, "datasht-2005", "audi", "a4", "2WD-4WD", "1013"), exist_ok=True)
+        for rel in ("1237_1.PDF", "1238_1.PDF", "1237/1237_1.PDF", "1237/1238_1.PDF",
+                    "1237/pics/breakout.jpg", "99 968/1-6.swf"):
+            with open(os.path.join(m, rel), "wb") as fh:
+                fh.write(b"x")
+        for rel in ("1013/1013_1a.pdf",):
+            with open(os.path.join(src, "datasht-2005", "audi", "a4", "2WD-4WD", rel), "wb") as fh:
+                fh.write(b"x")
+        dest = os.path.join(root, "live")
+        db = os.path.join(root, "i.db")
+        run = ["python3", os.path.join(THIS, "ingest.py"), "--source", src,
+               "--dest", dest, "--db", db,
+               "--schema", os.path.normpath(os.path.join(THIS, "..", "internal", "store", "schema.sql"))]
+        subprocess.run(run, capture_output=True, check=True)
+        con = sqlite3.connect(db)
+        stats = con.execute(
+            "SELECT (SELECT COUNT(*) FROM makes), (SELECT COUNT(*) FROM models), "
+            "(SELECT COUNT(*) FROM systems), (SELECT COUNT(*) FROM objects)"
+        ).fetchone()
+        self.assertEqual(stats, (2, 2, 4, 7), f"expected 2/2/4/7 got {stats}")
+        dup = con.execute(
+            "SELECT COUNT(*) FROM (SELECT rel_path FROM objects GROUP BY rel_path HAVING COUNT(*) > 1)"
+        ).fetchone()[0]
+        self.assertEqual(dup, 0)
+        for rel in ("2005/Daihatsu/cuore/1237/1237_1.PDF",
+                    "2005/Daihatsu/cuore/1237/pics/breakout.jpg",
+                    "2005/Daihatsu/cuore/99 968/1-6.swf",
+                    "2005/Audi/a4/2WD-4WD/1013/1013_1a.pdf"):
+            self.assertTrue(os.path.exists(os.path.join(dest, rel)), rel)
+        con.close()
+
 
 if __name__ == "__main__":
     unittest.main()
