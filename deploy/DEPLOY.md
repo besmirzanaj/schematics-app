@@ -98,3 +98,27 @@ app's session cookie.
 What it does: an online SQLite snapshot (safe to take while the app streams
 files — WAL), keep the last 7 daily snapshots, and rsync-mirror the served
 `data/live` tree to the backup host.
+
+## 9. Full real ingest + smoke test
+
+After steps 1-5 are live (over the tunnel):
+
+    cd /srv/skemat
+    python3 ingest/ingest.py --source /srv/skemat/source \
+      --dest /srv/skemat/data/live --db /srv/skemat/data/skemat.db \
+      --schema /srv/skemat/schema.sql
+    # expect roughly: makes≈60 models≈2500 systems≈9500 objects≈25000
+    chown -R skemat:skemat /srv/skemat
+    systemctl restart skemat && systemctl status skemat
+    SKEMAT_ADMIN_EMAIL=you@zanaj.pp.ua SKEMAT_ADMIN_PW='<initial>' scripts/smoke.sh
+    # -> SMOKE OK: /system/<id> -> /file/<id> (200)
+
+Then review normalization output (canonical make folding):
+
+    sqlite3 /srv/skemat/data/skemat.db \
+      "SELECT mk.name, m.display_name FROM models m JOIN makes mk ON mk.id=m.make_id
+       WHERE mk.name IN ('Mitsubishi','SsangYong','Volkswagen','Land Rover','Alfa Romeo','Dr');"
+
+Expected: each appears once as a single canonical make. If a display name is
+wrong, adjust `ingest/aliases.py`, re-run the ingest (idempotent), restart.
+First admin login uses `changeme` until you set a real password from `/admin`.
