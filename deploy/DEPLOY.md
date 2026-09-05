@@ -9,7 +9,7 @@ Debian/Ubuntu). Two entry points:
 Deploy is deliberately boring: one static Go binary, a prebuilt SQLite index,
 a read-only file tree, outbound-only access via Cloudflare Tunnel. The software
 pipeline (build, ingest source, convert SWF, ingest) runs once during setup —
-after that nothing on the VPS changes except backups.
+after that the VPS is static, and the Mac remains the source of truth for DR.
 
 Everything runs as root; SSH as the admin user and `sudo -i` first.
 
@@ -209,7 +209,7 @@ the data, then re-provision the runtime.
     rsync -avz --delete \
       /srv/skemat/data/   root@<new>:~/skemat-data/
     scp /srv/skemat/data/skemat.db root@<new>:~/skemat-data/skemat.db
-    scp /srv/skemat/schema.sql /etc/skemat.env /etc/skemat-backup.env \
+    scp /srv/skemat/schema.sql /etc/skemat.env \
         root@<new>:/root/skemat-conf/
 
 `skemat.db` is an online-consistent SQLite snapshot (WAL) — take it while the
