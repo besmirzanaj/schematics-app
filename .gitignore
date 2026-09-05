@@ -1,0 +1,9 @@
+data/
+*.db
+*.db-wal
+*.db-shm
+bin/
+skemat-server
+.DS_Store
+.env
+__pycache__/
