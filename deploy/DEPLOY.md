@@ -124,24 +124,51 @@ Result: `/admin/*` is additionally gated by Cloudflare identity. Customers
 never reach the admin UI; providers get an extra factor independent of the
 app's session cookie.
 
-## 8. Nightly offsite backups
+## 8. Disaster recovery — rebuild on a new VPS from scratch
 
-- `scp scripts/backup.sh /srv/skemat/scripts/` (mkpath `/srv/skemat/scripts` first)
-- `cp deploy/skemat-backup.service deploy/skemat-backup.timer /etc/systemd/system/`
-- Create `/etc/skemat-backup.env`:
+The VPS is disposable. Nothing on it is irreplaceable: the archive and the
+conversion toolchain live on the Mac, so every artifact can be rebuilt. There
+is no offsite backup host to babysit — evidence-of-life is that a fresh VPS
+passes this procedure end to end.
 
-      BACKUP_VPS=backup@<backup-vps>
-      BACKUP_DIR=/srv/backups/skemat
+Recovery targets:
 
-- Ensure passwordless SSH from the VPS to the backup host:
-  `ssh-keygen -t ed25519`, then append the public key to
-  `backup@<backup-vps>:~/.ssh/authorized_keys`.
-- `systemctl enable --now skemat-backup.timer`
-- Test: `systemctl start skemat-backup.service && systemctl status skemat-backup`
+    /srv/skemat/source        30,361 files (2.3 GB) from the Mac archive
+    /srv/skemat/data/live     the served tree, rebuilt by the ingest
+    /srv/skemat/data/skemat.db  rebuilt by the ingest (73/2365/3156/30361)
+    /etc/skemat.env           admin email + paths (6 lines, below)
 
-What it does: an online SQLite snapshot (safe to take while the app streams
-files — WAL), keep the last 7 daily snapshots, and rsync-mirror the served
-`data/live` tree to the backup host.
+DR run (root on the new VPS, ~1-2 h -- almost all of it the upload):
+
+    1.  Provision a Linux VPS (Rocky/Alma 9 or Debian/Ubuntu are fine).
+    2.  useradd --system --home /srv/skemat --shell /usr/sbin/nologin skemat
+        mkdir -p /srv/skemat/{data/live,bin,source}
+    3.  Build the app from the repo (Mac):  ./scripts/build.sh
+        scp bin/skemat-server root@<new>:/usr/local/bin/skemat-server
+        scp -r ingest root@<new>:/srv/skemat/ingest
+        scp internal/store/schema.sql root@<new>:/srv/skemat/schema.sql
+        scp deploy/skemat.service /etc/systemd/system/skemat.service
+        scp ingest/convert_swf.py ingest/fetch_swfrender.sh /srv/skemat/ingest/
+    4.  Ship the archive (Mac):
+        rsync -avz --info=progress2 \
+          "/Users/bzanaj/D_LENOVO_T480/.../GlobalJig Skemat/Skemat" \
+          root@<new>:/srv/skemat/source/
+    5.  Convert SWF once (Mac), then ship the PDFs and drop the SWFs on the
+        new VPS (reproduces the live catalog exactly -- see step 3a above).
+        If the lost VPS is still reachable, skip 4-5 and rsync its
+        /srv/skemat/{source,data} instead -- same result.
+    6.  systemctl daemon-reload && systemctl enable --now skemat
+        Test: curl http://127.0.0.1:8080/healthz   # -> ok
+    7.  Tunnel: recreate the Zero Trust tunnel + public hostname from the
+        dashboard, then on the VPS (cloudflared already installed):
+        sudo cloudflared service install <token-from-dashboard>
+    8.  Verify publicly + smoke (Mac):
+        curl https://skemat.zanaj.pp.ua/healthz                        # ok
+        SKEMAT_ADMIN_EMAIL=... SKEMAT_ADMIN_PW=... scripts/smoke.sh    # SMOKE OK
+
+There is no state worth backing up: every file, the DB, and the admin account
+are deterministic outputs of the ingest + a 6-line env file. If the mailbox
+email changes, update /etc/skemat.env and re-run step 6.
 
 ## 9. Full real ingest + smoke test
 
@@ -204,9 +231,10 @@ then instead of step 3's ingest:
     # sanity: row counts match the old DB, and data/live count == source count
     sqlite3 /srv/skemat/data/skemat.db "select count(*) from objects;"  # 30361
 
-Then steps 5-8: install the unit, wire the Cloudflare Tunnel, re-create the
-Access application, point the backup timer at the same backup host. Update any
-DNS/backup references if the hostname changed.
+Then steps 5-7: install the unit, wire the Cloudflare Tunnel, re-create the
+Access application. Update DNS/any hostname references if the name changed.
 
 No re-ingest, no SWF conversion — those ran once on the original and the
 artifacts (live tree + skemat.db) are the source of truth for serving.
+If the old VPS is gone, use the disaster-recovery procedure in section 8
+instead (rebuild from the Mac archive).

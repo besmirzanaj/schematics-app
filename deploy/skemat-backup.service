@@ -1,7 +1,0 @@
-[Unit]
-Description=Skemat offsite backup
-[Service]
-Type=oneshot
-EnvironmentFile=/etc/skemat.env
-EnvironmentFile=/etc/skemat-backup.env
-ExecStart=/srv/skemat/scripts/backup.sh
