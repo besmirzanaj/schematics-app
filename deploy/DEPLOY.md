@@ -48,3 +48,34 @@ Remember: after first boot the admin login starts with the default password
     systemctl daemon-reload && systemctl enable --now skemat
     systemctl status skemat
     curl -s http://127.0.0.1:8080/healthz   # -> ok
+
+## 6. Cloudflare Tunnel (zero inbound ports)
+
+Requires a Cloudflare account with `zanaj.pp.ua` in its zone. Run on the VPS.
+
+    curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 \
+      -o /usr/local/bin/cloudflared && chmod +x /usr/local/bin/cloudflared
+    cloudflared tunnel login          # browser flow with your Cloudflare account
+    cloudflared tunnel create skemat  # writes ~/.cloudflared/<id>.json
+    cp ~/.cloudflared/*.json /etc/cloudflared/skemat.json
+    cp deploy/cloudflared-config.yml /etc/cloudflared/config.yml
+    cloudflared tunnel route dns skemat skemat.zanaj.pp.ua   # creates CNAME
+    cloudflared service install       # systemd unit
+    systemctl restart cloudflared
+    curl -s https://skemat.zanaj.pp.ua/healthz   # -> ok over the tunnel
+
+Result: the VPS exposes zero inbound ports; all traffic arrives via the
+outbound-only tunnel.
+
+## 7. Cloudflare Access (gate /admin at the edge)
+
+Dashboard (free up to 50 users):
+
+- Zero Trust > Access > Applications > Add
+- Type: Self-hosted; Domain: `skemat.zanaj.pp.ua/admin`
+- Policy: Allow — the staff email addresses; deny everyone else
+- Session duration: 24h
+
+Result: `/admin/*` is additionally gated by Cloudflare identity. Customers
+never reach the admin UI; providers get an extra factor independent of the
+app's session cookie.

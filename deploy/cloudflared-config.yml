@@ -1,0 +1,7 @@
+tunnel: skemat
+credentials-file: /etc/cloudflared/skemat.json
+
+ingress:
+  - hostname: skemat.zanaj.pp.ua
+    service: http://127.0.0.1:8080
+  - service: http_status:404
